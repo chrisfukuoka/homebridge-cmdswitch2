@@ -7,12 +7,12 @@ module.exports = function (homebridge) {
   Characteristic = homebridge.hap.Characteristic;
   UUIDGen = homebridge.hap.uuid;
 
-  homebridge.registerPlatform("homebridge-cmdswitch2", "cmdSwitch2", cmdSwitchPlatform, true);
+  homebridge.registerPlatform("homebridge-CmdProgSwitchB", "CmdProgSwitchB", CmdSwitchBPlatform, true);
 }
 
-function cmdSwitchPlatform(log, config, api) {
+function CmdProgSwitchBPlatform(log, config, api) {
   this.log = log;
-  this.config = config || {"platform": "cmdSwitch2"};
+  this.config = config || {"platform": "CmdProgSwitchB"};
   this.switches = this.config.switches || [];
 
   this.accessories = {};
@@ -25,13 +25,13 @@ function cmdSwitchPlatform(log, config, api) {
 }
 
 // Method to restore accessories from cache
-cmdSwitchPlatform.prototype.configureAccessory = function (accessory) {
+CmdProgSwitchBPlatform.prototype.configureAccessory = function (accessory) {
   this.setService(accessory);
   this.accessories[accessory.context.name] = accessory;
 }
 
 // Method to setup accesories from config.json
-cmdSwitchPlatform.prototype.didFinishLaunching = function () {
+CmdProgSwitchBPlatform.prototype.didFinishLaunching = function () {
   // Add or update accessories defined in config.json
   for (var i in this.switches) this.addAccessory(this.switches[i]);
 
@@ -50,12 +50,12 @@ cmdSwitchPlatform.prototype.addAccessory = function (data) {
   var accessory = this.accessories[data.name];
 
   if (!accessory) {
-    // Setup accessory as SWITCH (8) category.
+    // Setup accessory as PROGRAMMABLE SWITCH (16) category.
     var uuid = UUIDGen.generate(data.name);
-    accessory = new Accessory(data.name, uuid, 8);
+    accessory = new Accessory(data.name, uuid, 16);
 
     // Setup HomeKit switch service
-    accessory.addService(Service.Switch, data.name);
+    accessory.addService(Service.StatelessProgrammableSwitch, data.name);
 
     // New accessory is always reachable
     accessory.reachable = true;
@@ -64,7 +64,7 @@ cmdSwitchPlatform.prototype.addAccessory = function (data) {
     this.setService(accessory);
 
     // Register new accessory in HomeKit
-    this.api.registerPlatformAccessories("homebridge-cmdswitch2", "cmdSwitch2", [accessory]);
+    this.api.registerPlatformAccessories("homebridge-CmdProgSwitchB", "CmdProgSwitchB", [accessory]);
 
     // Store accessory in cache
     this.accessories[data.name] = accessory;
@@ -82,6 +82,7 @@ cmdSwitchPlatform.prototype.addAccessory = function (data) {
   var cache = accessory.context;
   cache.name = data.name;
   cache.on_cmd = data.on_cmd;
+  cache.auto_cmd = data.auto_cmd
   cache.off_cmd = data.off_cmd;
   cache.state_cmd = data.state_cmd;
   cache.polling = data.polling;
@@ -92,7 +93,7 @@ cmdSwitchPlatform.prototype.addAccessory = function (data) {
   cache.serial = data.serial;
   if (cache.state === undefined) {
     cache.state = false;
-    if (data.off_cmd && !data.on_cmd) cache.state = true;
+    if (data.off_cmd && !data.on_cmd && !data.auto_cmd) cache.state = true;
   }
 
   // Retrieve initial state
@@ -103,21 +104,21 @@ cmdSwitchPlatform.prototype.addAccessory = function (data) {
 }
 
 // Method to remove accessories from HomeKit
-cmdSwitchPlatform.prototype.removeAccessory = function (accessory) {
+CmdProgSwitchBPlatform.prototype.removeAccessory = function (accessory) {
   if (accessory) {
     var name = accessory.context.name;
     this.log(name + " is removed from HomeBridge.");
-    this.api.unregisterPlatformAccessories("homebridge-cmdswitch2", "cmdSwitch2", [accessory]);
+    this.api.unregisterPlatformAccessories("homebridge-CmdProgSwitchB", "CmdProgSwitchB", [accessory]);
     delete this.accessories[name];
   }
 }
 
 // Method to setup listeners for different events
-cmdSwitchPlatform.prototype.setService = function (accessory) {
-  accessory.getService(Service.Switch)
-    .getCharacteristic(Characteristic.On)
-    .on('get', this.getPowerState.bind(this, accessory.context))
-    .on('set', this.setPowerState.bind(this, accessory.context));
+CmdProgSwitchBPlatform.prototype.setService = function (accessory) {
+  accessory.getService(Service.StatelessProgrammableSwitch)
+    .getCharacteristic(Characteristic.SinglePress)
+    .SinglePress('get', this.getPowerState.bind(this, accessory.context))
+    .SinglePress('set', this.setPowerState.bind(this, accessory.context));
 
   accessory.on('identify', this.identify.bind(this, accessory.context));
 }
@@ -211,11 +212,12 @@ cmdSwitchPlatform.prototype.getPowerState = function (thisSwitch, callback) {
 }
 
 // Method to set state
-cmdSwitchPlatform.prototype.setPowerState = function (thisSwitch, state, callback) {
+CmdProgSwitchBPlatform.prototype.setPowerState = function (thisSwitch, state, callback) {
   var self = this;
 
   var cmd = state ? thisSwitch.on_cmd : thisSwitch.off_cmd;
   var notCmd = state ? thisSwitch.off_cmd : thisSwitch.on_cmd;
+  var autoCmd = state ? thisSwitch.auto_cmd : thisSwitch.off_cmd;
   var tout = null;
 
   // Execute command to set state
@@ -253,13 +255,13 @@ cmdSwitchPlatform.prototype.setPowerState = function (thisSwitch, state, callbac
 }
 
 // Method to handle identify request
-cmdSwitchPlatform.prototype.identify = function (thisSwitch, paired, callback) {
+CmdProgSwitchBPlatform.prototype.identify = function (thisSwitch, paired, callback) {
   this.log(thisSwitch.name + " identify requested!");
   callback();
 }
 
 // Method to handle plugin configuration in HomeKit app
-cmdSwitchPlatform.prototype.configurationRequestHandler = function (context, request, callback) {
+CmdProgSwitchBPlatform.prototype.configurationRequestHandler = function (context, request, callback) {
   if (request && request.type === "Terminate") {
     return;
   }
@@ -318,11 +320,11 @@ cmdSwitchPlatform.prototype.configurationRequestHandler = function (context, req
           if (names.length > 0) {
             // Select existing accessory for modification or removal
             if (selection === 1) {
-              var title = "Witch switch do you want to modify?";
+              var title = "Which switch do you want to modify?";
               context.operation = 1;
               context.step = 3;
             } else {
-              var title = "Witch switch do you want to remove?";
+              var title = "Which switch do you want to remove?";
               context.step = 5;
             }
 
@@ -370,6 +372,10 @@ cmdSwitchPlatform.prototype.configurationRequestHandler = function (context, req
             }, {
               "id": "off_cmd",
               "title": "CMD to Turn Off",
+              "placeholder": context.operation ? "Leave blank if unchanged" : "net rpc shutdown -I XXX.XXX.XXX.XXX -U user%password"
+            }, {
+              "id": "auto_cmd",
+              "title": "CMD to Turn Auto",
               "placeholder": context.operation ? "Leave blank if unchanged" : "net rpc shutdown -I XXX.XXX.XXX.XXX -U user%password"
             }, {
               "id": "state_cmd",
@@ -491,6 +497,7 @@ cmdSwitchPlatform.prototype.configurationRequestHandler = function (context, req
             'name': accessory.context.name,
             'on_cmd': accessory.context.on_cmd,
             'off_cmd': accessory.context.off_cmd,
+            'auto_cmd': accessory.context.auto_cmd
             'state_cmd': accessory.context.state_cmd,
             'polling': accessory.context.polling,
             'interval': accessory.context.interval,
