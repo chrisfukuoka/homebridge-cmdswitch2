@@ -1,20 +1,20 @@
 {
   "name": "homebridge-cmdswitch2",
-  "version": "0.2.10",
-  "description": "CMD plugin for HomeBridge (API 2.0): https://github.com/nfarina/homebridge",
+  "version": "0.1.0",
+  "description": "CMD Programmable Switch plugin for HomeBridge (API 1.0): https://github.com/nfarina/homebridge",
   "repository": {
     "type": "git",
-    "url": "git://github.com/luisiam/homebridge-cmdswitch2.git"
+    "url": "git://github.com/chrisfukuoka/homebridge-cmdswitch2.git"
   },
   "keywords": [
     "homebridge-plugin"
   ],
-  "author": "Luis Iam",
+  "author": "Chris Fukuoka",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/luisiam/homebridge-cmdswitch2/issues"
+    "url": "https://github.com/chrisfukuoka/homebridge-cmdswitch2/issues"
   },
-  "homepage": "https://github.com/luisiam/homebridge-cmdswitch2#readme",
+  "homepage": "https://github.com/chrisfukuoka/homebridge-cmdswitch2#readme",
   "engines": {
     "node": ">=0.12.0",
     "homebridge": ">=0.3.0"
